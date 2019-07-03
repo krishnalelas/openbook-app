@@ -1,0 +1,148 @@
+import 'dart:io';
+
+import 'package:Buzzing/models/post.dart';
+import 'package:Buzzing/models/user.dart';
+import 'package:Buzzing/provider.dart';
+import 'package:Buzzing/services/navigation_service.dart';
+import 'package:Buzzing/services/user.dart';
+import 'package:Buzzing/widgets/icon.dart';
+import 'package:Buzzing/widgets/nav_bars/themed_nav_bar.dart';
+import 'package:Buzzing/widgets/page_scaffold.dart';
+import 'package:Buzzing/widgets/progress_indicator.dart';
+import 'package:Buzzing/widgets/theming/primary_color_container.dart';
+import 'package:Buzzing/widgets/theming/text.dart';
+import 'package:flutter/material.dart';
+
+class OBSharePostPage extends StatefulWidget {
+  final SharePostData sharePostData;
+
+  const OBSharePostPage({Key key, @required this.sharePostData})
+      : super(key: key);
+
+  @override
+  OBSharePostPageState createState() {
+    return OBSharePostPageState();
+  }
+}
+
+class OBSharePostPageState extends State<OBSharePostPage> {
+  bool _loggedInUserRefreshInProgress;
+  bool _needsBootstrap;
+  UserService _userService;
+  NavigationService _navigationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _needsBootstrap = true;
+    _loggedInUserRefreshInProgress = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_needsBootstrap) {
+      BuzzingProviderState buzzingProvider = BuzzingProvider.of(context);
+      _userService = buzzingProvider.userService;
+      _navigationService = buzzingProvider.navigationService;
+      _bootstrap();
+      _needsBootstrap = false;
+    }
+
+    User loggedInUser = _userService.getLoggedInUser();
+
+    return OBCupertinoPageScaffold(
+        navigationBar: _buildNavigationBar(),
+        child: OBPrimaryColorContainer(
+          child: StreamBuilder(
+            initialData: loggedInUser,
+            stream: loggedInUser.updateSubject,
+            builder: (BuildContext context, AsyncSnapshot<User> snapshot) {
+              User latestUser = snapshot.data;
+
+              if (_loggedInUserRefreshInProgress)
+                return const Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: const OBProgressIndicator(),
+                  ),
+                );
+
+              const TextStyle shareToTilesSubtitleStyle =
+                  TextStyle(fontSize: 14);
+
+              List<Widget> shareToTiles = [
+                ListTile(
+                  leading: const OBIcon(OBIcons.circles),
+                  title: const OBText('My circles'),
+                  subtitle: const OBText(
+                    'Share the post to one or multiple of your circles.',
+                    style: shareToTilesSubtitleStyle,
+                  ),
+                  onTap: _onWantsToSharePostToCircles,
+                )
+              ];
+
+              if (latestUser.isMemberOfCommunities) {
+                shareToTiles.add(ListTile(
+                  leading: const OBIcon(OBIcons.communities),
+                  title: const OBText('A community'),
+                  subtitle: const OBText(
+                    'Share the post to a community you\'re part of.',
+                    style: shareToTilesSubtitleStyle,
+                  ),
+                  onTap: _onWantsToSharePostToCommunity,
+                ));
+              }
+
+              return Column(
+                children: <Widget>[
+                  Expanded(
+                      child: ListView(
+                          physics: const ClampingScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          children: shareToTiles)),
+                ],
+              );
+            },
+          ),
+        ));
+  }
+
+  Widget _buildNavigationBar() {
+    return OBThemedNavigationBar(
+      title: 'Share to',
+    );
+  }
+
+  void _bootstrap() {
+    _refreshLoggedInUser();
+  }
+
+  Future<void> _refreshLoggedInUser() async {
+    User refreshedUser = await _userService.refreshUser();
+    if (!refreshedUser.isMemberOfCommunities) {
+      // Only possibility
+      _onWantsToSharePostToCircles();
+    }
+  }
+
+  void _onWantsToSharePostToCircles() async {
+    Post sharedPost = await _navigationService.navigateToSharePostWithCircles(
+        context: context, sharePostData: widget.sharePostData);
+    if (sharedPost != null) Navigator.pop(context, sharedPost);
+  }
+
+  void _onWantsToSharePostToCommunity() async {
+    Post sharedPost = await _navigationService.navigateToSharePostWithCommunity(
+        context: context, sharePostData: widget.sharePostData);
+    if (sharedPost != null) Navigator.pop(context, sharedPost);
+  }
+}
+
+class SharePostData {
+  String text;
+  File image;
+  File video;
+
+  SharePostData({@required this.text, this.image, this.video});
+}

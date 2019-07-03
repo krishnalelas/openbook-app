@@ -1,0 +1,16 @@
+.DS_Store
+.dart_tool/
+
+.packages
+.pub/
+
+build/
+android/key.properties
+
+.flutter-plugins
+/.idea
+android/.idea
+.env.json
+/codesigndoc_exports
+Appfile
+report.xml
