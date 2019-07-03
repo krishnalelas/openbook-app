@@ -55,3 +55,8 @@ build_ios_prod:
 build_apk_prod:
 	flutter build apk --flavor production
 ```
+
+## Changes from original Repo link
+
+   Changed the name of the application to "buzzing" and project named everywhere.
+    and removed many screens and UX.
